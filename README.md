@@ -23,7 +23,7 @@ This script provides a safe and user-friendly way to create bootable USB drives 
 You can simply clone the directory and run the script:
 
 ```bash
-git clone https://github.com/yourusername/isobootmaker
+git clone https://github.com/Mik-TF/isobootmaker
 cd isobootmaker
 bash isoboot.sh
 ```
