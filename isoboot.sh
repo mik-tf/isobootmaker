@@ -52,6 +52,11 @@ Requirements:
 Example:
   $0
   $0 help
+
+Reference: https://github.com/Mik-TF/isobootmaker
+
+License: Apache 2.0
+  
 EOF
 }
 
