@@ -1,22 +1,55 @@
 #!/bin/bash
 
-# Script to format a USB drive and make it bootable with ISO
+# Part 1/3 - Script header and core functions
+# Get script information dynamically
+SCRIPT_NAME=$(basename "$0")
+INSTALL_NAME="${SCRIPT_NAME%.*}"  # Removes the .sh extension if it exists
+DISPLAY_NAME="${INSTALL_NAME^^}"  # Convert to uppercase for display
+REPO_URL="https://github.com/Mik-TF/${INSTALL_NAME}"
 
-# Function to check for sudo privileges and request if needed
-ensure_sudo() {
-    if [[ $EUID -ne 0 ]]; then
-        echo "Requesting sudo privileges..."
-        if ! sudo -v; then
-            echo "Failed to obtain sudo privileges"
-            exit 1
-        fi
+# Script description - modify this for different uses
+SCRIPT_DESC="Format a USB drive and make it bootable with ISO"
+
+# Color definitions
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Function to install the script
+install() {
+    echo
+    echo -e "${GREEN}Installing ${DISPLAY_NAME}...${NC}"
+    if sudo -v; then
+        sudo cp "$0" "/usr/local/bin/${INSTALL_NAME}"
+        sudo chown root:root "/usr/local/bin/${INSTALL_NAME}"
+        sudo chmod 755 "/usr/local/bin/${INSTALL_NAME}"
+
+        echo
+        echo -e "${GREEN}${DISPLAY_NAME} has been installed successfully.${NC}"
+        echo -e "You can now use ${GREEN}${INSTALL_NAME}${NC} command from anywhere."
+        echo
+        echo -e "Use ${BLUE}${INSTALL_NAME} help${NC} to see the commands."
+        echo
+    else
+        echo -e "${RED}Error: Failed to obtain sudo privileges. Installation aborted.${NC}"
+        exit 1
     fi
 }
 
-# Function to handle exit consistently
-handle_exit() {
-    echo "Exiting..."
-    exit 0
+# Function to uninstall the script
+uninstall() {
+    echo
+    echo -e "${GREEN}Uninstalling ${DISPLAY_NAME}...${NC}"
+    if sudo -v; then
+        sudo rm -f "/usr/local/bin/${INSTALL_NAME}"
+        echo -e "${GREEN}${DISPLAY_NAME} has been uninstalled successfully.${NC}"
+        echo
+    else
+        echo -e "${RED}Error: Failed to obtain sudo privileges. Uninstallation aborted.${NC}"
+        exit 1
+    fi
 }
 
 # Function to display help information
@@ -24,13 +57,18 @@ show_help() {
     cat << EOF
     
 ==========================
-ISO USB BOOTMAKER
+${DISPLAY_NAME}
 ==========================
 
-This Bash CLI script formats a USB drive and installs an ISO bootable image.
+This Bash CLI script can ${SCRIPT_DESC}.
+
+Commands:
+  help        Display this help message
+  install     Install the script system-wide
+  uninstall   Remove the script from the system
 
 Options:
-  help        Display this help message.
+  No arguments    Run the interactive ${DISPLAY_NAME}
 
 Steps:
 1. Prompts for a path to unmount (optional).
@@ -50,24 +88,45 @@ Requirements:
 - A downloaded ISO or URL to download from
 
 Example:
-  $0
-  $0 help
+  ${INSTALL_NAME}
+  ${INSTALL_NAME} help
+  ${INSTALL_NAME} install
+  ${INSTALL_NAME} uninstall
 
-Reference: https://github.com/Mik-TF/isobootmaker
+Reference: ${REPO_URL}
 
 License: Apache 2.0
   
 EOF
 }
 
+# Function to check for sudo privileges and request if needed
+ensure_sudo() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "Requesting sudo privileges..."
+        if ! sudo -v; then
+            echo -e "${RED}Failed to obtain sudo privileges${NC}"
+            exit 1
+        fi
+    fi
+}
+
+# Part 2/3 - Helper functions:
+
+# Function to handle exit consistently
+handle_exit() {
+    echo -e "${BLUE}Exiting ${DISPLAY_NAME}...${NC}"
+    exit 0
+}
+
 # Function to display lsblk and allow exit
 show_lsblk() {
     echo
-    echo "Current disk layout:"
+    echo -e "${BLUE}Current disk layout:${NC}"
     echo
     lsblk
     echo
-    echo "This is your current disk layout. Consider this before proceeding."
+    echo -e "${PURPLE}This is your current disk layout. Consider this before proceeding.${NC}"
     echo
 
     while true; do
@@ -75,7 +134,7 @@ show_lsblk() {
         case "${response,,}" in  # Convert to lowercase
             exit ) handle_exit;;
             "" ) break;;  # Empty input (Enter key) continues
-            * ) echo "Invalid input. Please press Enter or type 'exit'.";;
+            * ) echo -e "${RED}Invalid input. Please press Enter or type 'exit'.${NC}";;
         esac
     done
 }
@@ -90,7 +149,7 @@ get_confirmation() {
             y ) return 0;;
             n ) return 1;;
             exit ) handle_exit;;
-            * ) echo "Please answer 'y', 'n', or 'exit'.";;
+            * ) echo -e "${RED}Please answer 'y', 'n', or 'exit'.${NC}";;
         esac
     done
 }
@@ -113,17 +172,17 @@ ask_and_unmount() {
             y ) 
                 unmount_path=$(get_input "Enter the path to unmount (e.g., /mnt/usb)")
                 if [[ -n "$unmount_path" ]]; then
-                    echo "Unmounting $unmount_path..."
+                    echo -e "${BLUE}Unmounting $unmount_path...${NC}"
                     ensure_sudo
                     sudo umount -- "$unmount_path" || {
                         umount_result=$?
-                        echo "Error unmounting $unmount_path (exit code: $umount_result)"
+                        echo -e "${RED}Error unmounting $unmount_path (exit code: $umount_result)${NC}"
                     }
                 fi
                 break ;;
             n ) break;;
             exit ) handle_exit;;
-            * ) echo "Please answer 'y', 'n', or 'exit'.";;
+            * ) echo -e "${RED}Please answer 'y', 'n', or 'exit'.${NC}";;
         esac
     done
 }
@@ -141,15 +200,15 @@ download_iso() {
     filename=$(basename "$url")
     local filepath="$download_dir/$filename"
 
-    echo "Downloading ISO to $filepath..."
-    echo "This may take a while depending on your internet connection..."
+    echo -e "${BLUE}Downloading ISO to $filepath...${NC}"
+    echo -e "${PURPLE}This may take a while depending on your internet connection...${NC}"
     
     if wget --show-progress -c "$url" -O "$filepath"; then
-        echo "Download completed successfully"
+        echo -e "${GREEN}Download completed successfully${NC}"
         echo "$filepath"
         return 0
     else
-        echo "Error downloading ISO"
+        echo -e "${RED}Error downloading ISO${NC}"
         return 1
     fi
 }
@@ -161,37 +220,55 @@ validate_iso() {
     # Expand the path (handle ~, etc.)
     file=$(eval echo "$file")
     
-    echo "Checking ISO file: $file"  # Debug output
+    echo -e "${BLUE}Checking ISO file: $file${NC}"
     
     # Check if file exists
     if [[ ! -f "$file" ]]; then
-        echo "Error: File does not exist"
+        echo -e "${RED}Error: File does not exist${NC}"
         return 1
     fi
     
     # Check file extension
     if [[ "$file" != *.iso ]]; then
-        echo "Error: File does not have .iso extension"
+        echo -e "${RED}Error: File does not have .iso extension${NC}"
         return 1
     fi
     
-    echo "ISO file validation successful"
+    echo -e "${GREEN}ISO file validation successful${NC}"
     return 0
 }
 
+# Part 3/3 - Main execution flow
 # Verify dependencies
 for cmd in dd mount rsync wget; do
     if ! command -v "$cmd" &> /dev/null; then
-        echo "Error: $cmd is not installed. Please install it first."
+        echo -e "${RED}Error: $cmd is not installed. Please install it first.${NC}"
         exit 1
     fi
 done
 
-# Check if help is requested
-if [[ "$1" == "help" ]]; then
-    show_help
-    exit 0
-fi
+# Check for arguments
+case "$1" in
+    "help")
+        show_help
+        exit 0
+        ;;
+    "install")
+        install
+        exit 0
+        ;;
+    "uninstall")
+        uninstall
+        exit 0
+        ;;
+    "")
+        # Continue with normal execution
+        ;;
+    *)
+        echo -e "${RED}Invalid argument. Use '${INSTALL_NAME} help' to see available commands.${NC}"
+        exit 1
+        ;;
+esac
 
 # Display initial disk layout
 show_lsblk
@@ -208,19 +285,19 @@ while true; do
             if [[ "$disk_to_format" =~ ^/dev/sd[b-z]$ ]] && [[ -b "$disk_to_format" ]]; then
                 # Check if it's the system disk
                 if [[ "$disk_to_format" == "/dev/sda" ]]; then
-                    echo "Error: Cannot use system disk as target."
+                    echo -e "${RED}Error: Cannot use system disk as target.${NC}"
                     continue
                 fi
                 
                 # Check if the target disk is mounted
                 if mount | grep -q "$disk_to_format"; then
-                    echo "Error: Target disk is mounted. Please unmount it first."
+                    echo -e "${RED}Error: Target disk is mounted. Please unmount it first.${NC}"
                     continue
                 fi
                 
                 break
             else
-                echo "Error: Invalid disk format or device does not exist. Please enter /dev/sdX (e.g., /dev/sdb)."
+                echo -e "${RED}Error: Invalid disk format or device does not exist. Please enter /dev/sdX (e.g., /dev/sdb).${NC}"
             fi
             ;;
     esac
@@ -229,7 +306,7 @@ done
 # Get ISO path or URL (with validation)
 while true; do
     echo
-    echo "You can either:"
+    echo -e "${BLUE}You can either:${NC}"
     echo "1. Provide the path to a local ISO"
     echo "2. Provide a download URL for the ISO"
     echo
@@ -247,7 +324,7 @@ while true; do
                 if [[ $? -eq 0 ]] && validate_iso "$iso_path"; then
                     break
                 else
-                    echo "Error: Failed to download or validate ISO file."
+                    echo -e "${RED}Error: Failed to download or validate ISO file.${NC}"
                 fi
             else
                 # Treat as local file path
@@ -256,7 +333,7 @@ while true; do
                     iso_path="$iso_input"
                     break
                 else
-                    echo "Error: Invalid ISO file. Please provide a valid path to a .iso file or a download URL."
+                    echo -e "${RED}Error: Invalid ISO file. Please provide a valid path to a .iso file or a download URL.${NC}"
                 fi
             fi
             ;;
@@ -266,7 +343,7 @@ done
 # Confirm formatting
 if ! get_confirmation "Are you sure you want to format $disk_to_format? This will ERASE ALL DATA"; then
     echo
-    echo "Operation cancelled."
+    echo -e "${BLUE}Operation cancelled.${NC}"
     echo
     exit 0
 fi
@@ -275,11 +352,11 @@ fi
 ensure_sudo
 
 # Write ISO to USB drive
-echo "Writing ISO to USB drive... This may take several minutes..."
+echo -e "${BLUE}Writing ISO to USB drive... This may take several minutes...${NC}"
 if sudo dd bs=4M if="$iso_path" of="$disk_to_format" status=progress conv=fdatasync; then
-    echo "ISO successfully written to USB drive"
+    echo -e "${GREEN}ISO successfully written to USB drive${NC}"
 else
-    echo "Error writing ISO to USB drive"
+    echo -e "${RED}Error writing ISO to USB drive${NC}"
     exit 1
 fi
 
@@ -288,15 +365,15 @@ sync
 
 # Ask about ejecting
 if get_confirmation "Do you want to eject the disk?"; then
-    echo "Ejecting $disk_to_format..."
+    echo -e "${BLUE}Ejecting $disk_to_format...${NC}"
     ensure_sudo
     sudo eject "$disk_to_format" || {
-        echo "Error ejecting disk"
+        echo -e "${RED}Error ejecting disk${NC}"
         exit 1
     }
-    echo "Disk ejected successfully"
+    echo -e "${GREEN}Disk ejected successfully${NC}"
 fi
 
 echo
-echo "ISO bootable USB created successfully!"
+echo -e "${GREEN}${DISPLAY_NAME} completed successfully!${NC}"
 echo
